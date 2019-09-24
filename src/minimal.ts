@@ -12,7 +12,7 @@ class Stechuhr {
     this.page = p;
   }
 
-
+  /// logout
   public async logout() {
     await this.page.evaluate(() => {
       function findComponent(tag: string, name: RegExp): HTMLElement|null {
@@ -36,9 +36,7 @@ class Stechuhr {
     await this.page.waitForNavigation();
   }
 
-  /**
-   * login
-  */
+  /// login
   public async login(user : string, password : string) {
     const u = user;
     const p = password;
@@ -55,18 +53,12 @@ class Stechuhr {
     await this.page.waitForSelector('a.bmd-tile');
     console.log("login done");
   }
-
+  
   public async screenshot() {
     console.log("screenshot");
     return this.page.screenshot({ path: 'outputs/example.png' });
   }
 
-  /**
-   * come
-   */
-  public come() {
-    
-  }
 }
 
 
