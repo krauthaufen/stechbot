@@ -12,6 +12,117 @@ class Stechuhr {
     this.page = p;
   }
 
+  public async insertNewRecording(date : string, startTime : string, endTime : string, sodexo : string) {
+    const da = date;
+    const st = startTime;
+    const en = endTime;
+    const so = sodexo;
+    // click new recording button
+    await this.page.evaluate(() => {
+      function findComponent(tag: string, name: RegExp): HTMLElement|null {
+        const all = 
+          Array.from(document.getElementsByTagName(tag))
+            .filter(e => {
+                var a = e.getAttribute("data-componentid");
+                return a ? name.test(a) : false;
+            });
+        if(all.length > 0) return all[0] as HTMLElement;
+        else return null;
+      }
+      const newButton = findComponent("a", /.*RibbonButtonExt429CID30104.*/i);
+      if(!newButton) throw "Edit Time Recordings screen: create new recording button not found";
+      newButton.click();
+    });
+
+    // wait until input mask appears
+    await this.page.waitForSelector('a.x-row-editor-update-button');
+
+    // fill out input mask
+    await this.page.evaluate(([da,st,en,so]) => {
+      function findInput(name : RegExp): HTMLElement|null {
+        const all = 
+          Array.from(document.getElementsByTagName("input"))
+            .filter(e => {
+                var a = e.getAttribute("name");
+                return a ? name.test(a) : false;
+            });
+        if(all.length > 0) return all[0] as HTMLElement;
+        else return null;
+      }
+      const saveButton = Array.from(document.getElementsByTagName("a")).filter((e) => e.classList.contains("x-row-editor-update-button"))[0];
+      if(!saveButton) throw "New Recording form: save button not found"
+
+      const dateInput = findInput(/.*BUCHUNG_DATUM.*/i) as HTMLInputElement;
+      if(!dateInput) throw "New Recording form: input BUCHUNG_DATUM not found"
+      const startTimeInput = findInput(/.*BUCHUNG_BEGINNZEIT.*/i) as HTMLInputElement;
+      if(!startTimeInput) throw "New Recording form: input BUCHUNG_BEGINNZEIT not found"
+      const endTimeInput = findInput(/.*BUCHUNG_ENDEZEIT.*/i) as HTMLInputElement;
+      if(!endTimeInput) throw "New Recording form: input BUCHUNG_ENDEZEIT not found"
+      const sodexoInput = findInput(/.*FREIFELD8.*/i) as HTMLInputElement;
+      if(!sodexoInput) throw "New Recording form: input FREIFELD8 (Sodexo) not found"
+
+      dateInput.value = da;
+      startTimeInput.value = st;
+      endTimeInput.value = en;
+      sodexoInput.value = so;
+
+      saveButton.click();
+
+    },[da,st,en,so]);
+
+    this.page.waitForFunction(() => {
+      const a = Array.from(document.getElementsByTagName("a")).filter((e) => e.classList.contains("x-row-editor-update-button"));
+      return a.length == 0;
+    })
+    console.log("new recording inserted");
+  }
+
+  public async editRecordings() {
+    console.log("begin opening page: edit time recordings.....");
+    await this.page.evaluate(() => {
+      function findComponent(tag: string, name: RegExp): HTMLElement|null {
+        const all = 
+          Array.from(document.getElementsByTagName(tag))
+            .filter(e => {
+                var a = e.getAttribute("data-componentid");
+                return a ? name.test(a) : false;
+            });
+        if(all.length > 0) return all[0] as HTMLElement;
+        else return null;
+      }
+      const editButton = findComponent("a", /.*TileButtonCID30045.*/i);
+      if(!editButton) throw "Time screen: edit recordings button not found";
+      editButton.click();
+    });
+    await this.page.waitForSelector('a.bmd-ribbonbar-button');
+    this.page.waitForFunction(() => {
+      const a = Array.from(document.getElementsByTagName("div")).filter((e) => e.getAttribute("componentid") == "loadmask-1010");
+      return a.length == 0;
+    })
+    // still too early!!
+    console.log("finished opening page: edit time recordings");
+  }
+
+  public async time() {
+    await this.page.evaluate(() => {
+      function findComponent(tag: string, name: RegExp): HTMLElement|null {
+        const all = 
+          Array.from(document.getElementsByTagName(tag))
+            .filter(e => {
+                var a = e.getAttribute("data-componentid");
+                return a ? name.test(a) : false;
+            });
+        if(all.length > 0) return all[0] as HTMLElement;
+        else return null;
+      }
+      const timeButton = findComponent("a", /.*TileButtonPKG564.*/i);
+      if(!timeButton) throw "Main screen: time button not found";
+      timeButton.click();
+    });
+    await this.page.waitForSelector('a.bmd-tile');
+    console.log("goto: time");
+  }
+
   /// logout
   public async logout() {
     await this.page.evaluate(() => {
@@ -34,6 +145,7 @@ class Stechuhr {
       logoutButton.click();
     });
     await this.page.waitForNavigation();
+    console.log("logout");
   }
 
   /// login
@@ -44,7 +156,9 @@ class Stechuhr {
       const uField : HTMLInputElement = document.getElementById("username") as HTMLInputElement;
       const pField : HTMLInputElement = document.getElementById("password") as HTMLInputElement;
       const sButton : HTMLInputElement = document.getElementById("submit") as HTMLInputElement;
+      const lSelect : HTMLInputElement = document.getElementById("language") as HTMLInputElement;
 
+      lSelect.value = "ENG";
       uField.value = u;
       pField.value = p;
       sButton.click();
@@ -54,9 +168,10 @@ class Stechuhr {
     console.log("login done");
   }
   
-  public async screenshot() {
+  public async screenshot(i : number) {
     console.log("screenshot");
-    return this.page.screenshot({ path: 'outputs/example.png' });
+    const p = 'outputs/'+i+'.png';
+    return this.page.screenshot({ path: p });
   }
 
 }
@@ -81,7 +196,19 @@ class Stechuhr {
 
   await u.login(lines[0], lines[1]);
 
-  await u.screenshot();
+  await u.screenshot(0);
+
+  await u.time();
+
+  await u.screenshot(1);
+
+  await u.editRecordings();
+
+  await u.screenshot(2);
+
+  await u.insertNewRecording("26.09.2019","06:00","18:00","1,10");
+
+  await u.screenshot(3);
 
   await u.logout();
 
