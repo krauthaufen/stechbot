@@ -17,6 +17,11 @@ class Stechuhr {
     const st = startTime;
     const en = endTime;
     const so = sodexo;
+    console.log("begin: insert new record ... ");
+    console.log("date: "+da);
+    console.log("starttime: "+st);
+    console.log("endtime: "+en);
+    console.log("sodexo: "+so);
     // click new recording button
     await this.page.evaluate(() => {
       function findComponent(tag: string, name: RegExp): HTMLElement|null {
@@ -29,7 +34,7 @@ class Stechuhr {
         if(all.length > 0) return all[0] as HTMLElement;
         else return null;
       }
-      const newButton = findComponent("a", /.*RibbonButtonExt429CID30104.*/i);
+      const newButton = findComponent("a", /.*RibbonButtonExt[0-9]+CID30104.*/i);
       if(!newButton) throw "Edit Time Recordings screen: create new recording button not found";
       newButton.click();
     });
@@ -49,8 +54,6 @@ class Stechuhr {
         if(all.length > 0) return all[0] as HTMLElement;
         else return null;
       }
-      const saveButton = Array.from(document.getElementsByTagName("a")).filter((e) => e.classList.contains("x-row-editor-update-button"))[0];
-      if(!saveButton) throw "New Recording form: save button not found"
 
       const dateInput = findInput(/.*BUCHUNG_DATUM.*/i) as HTMLInputElement;
       if(!dateInput) throw "New Recording form: input BUCHUNG_DATUM not found"
@@ -66,19 +69,52 @@ class Stechuhr {
       endTimeInput.value = en;
       sodexoInput.value = so;
 
-      saveButton.click();
-
     },[da,st,en,so]);
 
-    this.page.waitForFunction(() => {
-      const a = Array.from(document.getElementsByTagName("a")).filter((e) => e.classList.contains("x-row-editor-update-button"));
+    function wait(ms : number) { 
+      return new Promise((resolve,_) => { 
+        setTimeout(() => {
+          resolve(true);
+        },ms);
+      });
+    };
+
+    // wait for input field validation to complete (it will briefly insert invalid inputs as it converges...)
+    await wait(10);
+
+    // click save button
+    await this.page.evaluate(() => {
+      const saveButton = Array.from(document.getElementsByTagName("a")).filter((e) => e.classList.contains("x-row-editor-update-button"))[0];
+      if(!saveButton) throw "New Recording form: save button not found"
+
+      saveButton.click();
+    });
+    console.log("clicked save button");
+
+    // // wait until save button disappears
+    // await this.page.waitForFunction(() => {
+    //   const a = Array.from(document.getElementsByTagName("a")).filter((e) => e.classList.contains("x-row-editor-update-button"));
+    //   return a.length == 0;
+    // })
+    // wait until all loading spinners are either removed or hidden
+    await this.page.waitForFunction(() => {
+      const a = Array.from(document.getElementsByTagName("div")).filter((e) => 
+        { 
+          const a = e.getAttribute("data-componentid");
+          if(!a) {
+            return false;
+          } else {
+            return /.*loadmask.*/i.test( a as string) && (!e.getAttribute("aria-hidden") || e.getAttribute("aria-hidden") == "false");;
+          }
+        });
       return a.length == 0;
-    })
+    });
     console.log("new recording inserted");
   }
 
   public async editRecordings() {
     console.log("begin opening page: edit time recordings.....");
+    // click the edit time recordings button
     await this.page.evaluate(() => {
       function findComponent(tag: string, name: RegExp): HTMLElement|null {
         const all = 
@@ -94,12 +130,21 @@ class Stechuhr {
       if(!editButton) throw "Time screen: edit recordings button not found";
       editButton.click();
     });
+    // wait until insert new entry button appears
     await this.page.waitForSelector('a.bmd-ribbonbar-button');
-    this.page.waitForFunction(() => {
-      const a = Array.from(document.getElementsByTagName("div")).filter((e) => e.getAttribute("componentid") == "loadmask-1010");
+    // wait until all loading spinners are either removed or hidden
+    await this.page.waitForFunction(() => {
+      const a = Array.from(document.getElementsByTagName("div")).filter((e) => 
+        { 
+          const a = e.getAttribute("data-componentid");
+          if(!a) {
+            return false;
+          } else {
+            return /.*loadmask.*/i.test( a as string) && (!e.getAttribute("aria-hidden") || e.getAttribute("aria-hidden") == "false");;
+          }
+        });
       return a.length == 0;
-    })
-    // still too early!!
+    });
     console.log("finished opening page: edit time recordings");
   }
 
@@ -125,6 +170,7 @@ class Stechuhr {
 
   /// logout
   public async logout() {
+    console.log("logout");
     await this.page.evaluate(() => {
       function findComponent(tag: string, name: RegExp): HTMLElement|null {
         const all = 
@@ -145,7 +191,7 @@ class Stechuhr {
       logoutButton.click();
     });
     await this.page.waitForNavigation();
-    console.log("logout");
+    console.log("logout done");
   }
 
   /// login
@@ -169,7 +215,7 @@ class Stechuhr {
   }
   
   public async screenshot(i : number) {
-    console.log("screenshot");
+    console.log("screenshot "+i);
     const p = 'outputs/'+i+'.png';
     return this.page.screenshot({ path: p });
   }
@@ -185,7 +231,7 @@ class Stechuhr {
   const lines = data.split(os.EOL);
 
   // Create the browser instance. Pass an object to launch to configure the browser instance
-  const browser = await puppeteer.launch({ignoreHTTPSErrors: true, args: ['--ignore-certificate-errors']});
+  const browser = await puppeteer.launch({ignoreHTTPSErrors: true, args: ['--ignore-certificate-errors','--window-size=1024,768']});
   
   // Create a new page, and navigate to the example site when it's ready
   const page = await browser.newPage();
@@ -206,7 +252,7 @@ class Stechuhr {
 
   await u.screenshot(2);
 
-  await u.insertNewRecording("26.09.2019","06:00","18:00","1,10");
+  await u.insertNewRecording("27.09.2019","08:33","18:44","4,40");
 
   await u.screenshot(3);
 
