@@ -12,6 +12,43 @@ class Stechuhr {
     this.page = p;
   }
 
+  public async dayEndClosing() {
+    console.log("clicking day-end-closing button ...");
+    // click dayEndClosing button
+    await this.page.evaluate(() => {
+      function findComponent(tag: string, name: RegExp): HTMLElement|null {
+        const all = 
+          Array.from(document.getElementsByTagName(tag))
+            .filter(e => {
+                var a = e.getAttribute("data-componentid");
+                return a ? name.test(a) : false;
+            });
+        if(all.length > 0) return all[0] as HTMLElement;
+        else return null;
+      }
+      const newButton = findComponent("a", /.*RibbonButtonExt[0-9]+CID30130.*/i);
+      if(!newButton) throw "Edit Time Recordings screen: dayEndClosing button not found";
+      newButton.click();
+    });
+
+    // wait until all loading spinners are either removed or hidden
+    await this.page.waitForFunction(() => {
+      const a = Array.from(document.getElementsByTagName("div")).filter((e) => 
+        { 
+          const a = e.getAttribute("data-componentid");
+          if(!a) {
+            return false;
+          } else {
+            return /.*loadmask.*/i.test( a as string) && (!e.getAttribute("aria-hidden") || e.getAttribute("aria-hidden") == "false");;
+          }
+        });
+      return a.length == 0;
+    });
+    console.log("clicked day-end-closing button ..");
+
+  }
+
+
   public async insertNewRecording(date : string, startTime : string, endTime : string, sodexo : string) {
     const da = date;
     const st = startTime;
@@ -95,11 +132,6 @@ class Stechuhr {
     });
     console.log("clicked save button");
 
-    // // wait until save button disappears
-    // await this.page.waitForFunction(() => {
-    //   const a = Array.from(document.getElementsByTagName("a")).filter((e) => e.classList.contains("x-row-editor-update-button"));
-    //   return a.length == 0;
-    // })
     // wait until all loading spinners are either removed or hidden
     await this.page.waitForFunction(() => {
       const a = Array.from(document.getElementsByTagName("div")).filter((e) => 
@@ -328,23 +360,13 @@ class Stechuhr {
 
   await u.screenshot(2);
 
-  await u.insertNewRecording("27.09.2019","08:30","13:00","4,40");
+  await u.insertNewRecording("01.10.2019","10:00","19:00","4,40");
+
   await u.screenshot(3);
 
-  await u.insertNewRecording("27.09.2019","13:45","18:00","");
+  await u.dayEndClosing();
+
   await u.screenshot(4);
-
-  await u.back();
-  
-  await u.screenshot(5);
-
-  await u.back();
-  
-  await u.screenshot(6);
-
-  await u.enterARB();
-
-  await u.screenshot(7);
 
   await u.logout();
 
