@@ -64,9 +64,13 @@ class Stechuhr {
       const sodexoInput = findInput(/.*FREIFELD8.*/i) as HTMLInputElement;
       if(!sodexoInput) throw "New Recording form: input FREIFELD8 (Sodexo) not found"
 
+      dateInput.focus();
       dateInput.value = da;
+      startTimeInput.focus();
       startTimeInput.value = st;
+      endTimeInput.focus();
       endTimeInput.value = en;
+      sodexoInput.focus();
       sodexoInput.value = so;
 
     },[da,st,en,so]);
@@ -80,7 +84,7 @@ class Stechuhr {
     };
 
     // wait for input field validation to complete (it will briefly insert invalid inputs as it converges...)
-    await wait(10);
+    await wait(1000);
 
     // click save button
     await this.page.evaluate(() => {
@@ -111,6 +115,8 @@ class Stechuhr {
     });
     console.log("new recording inserted");
   }
+
+
 
   public async editRecordings() {
     console.log("begin opening page: edit time recordings.....");
@@ -214,6 +220,76 @@ class Stechuhr {
     console.log("login done");
   }
   
+  public async back() {
+    await this.page.evaluate(() => {
+      function findComponent(tag: string, name: RegExp): HTMLElement|null {
+        const all = 
+          Array.from(document.getElementsByTagName(tag))
+            .filter(e => {
+                var a = e.getAttribute("data-componentid");
+                return a ? name.test(a) : false;
+            });
+        if(all.length > 0) return all[0] as HTMLElement;
+        else return null;
+      }
+      const timeButton = findComponent("a", /.*NavBarBtnMain.*/i);
+      if(!timeButton) throw "home button not found";
+      timeButton.click();
+    });
+
+    // wait until all loading spinners are either removed or hidden
+    await this.page.waitForFunction(() => {
+      const a = Array.from(document.getElementsByTagName("div")).filter((e) => 
+        { 
+          const a = e.getAttribute("data-componentid");
+          if(!a) {
+            return false;
+          } else {
+            return /.*loadmask.*/i.test( a as string) && (!e.getAttribute("aria-hidden") || e.getAttribute("aria-hidden") == "false");;
+          }
+        });
+      return a.length == 0;
+    });
+
+    console.log("went back");
+  }
+
+  public async enterARB() {
+    console.log("begin opening page: ARB.....");
+    // click the edit time recordings button
+    await this.page.evaluate(() => {
+      function findComponent(tag: string, name: RegExp): HTMLElement|null {
+        const all = 
+          Array.from(document.getElementsByTagName(tag))
+            .filter(e => {
+                var a = e.getAttribute("data-componentid");
+                return a ? name.test(a) : false;
+            });
+        if(all.length > 0) return all[0] as HTMLElement;
+        else return null;
+      }
+      const editButton = findComponent("a", /.*TileButtonPKG584.*/i);
+      if(!editButton) throw "Main screen: ARB button not found";
+      editButton.click();
+    });
+
+    // wait until all loading spinners are either removed or hidden
+    await this.page.waitForFunction(() => {
+      const a = Array.from(document.getElementsByTagName("a")).filter((e) => 
+        { 
+          const a = e.getAttribute("data-componentid");
+          if(!a) {
+            return false;
+          } else {
+            return /.*TileButtonCID29166.*/i.test( a as string);
+          }
+        });
+      return a.length >= 1;
+    });
+
+
+  }
+
   public async screenshot(i : number) {
     console.log("screenshot "+i);
     const p = 'outputs/'+i+'.png';
@@ -252,9 +328,23 @@ class Stechuhr {
 
   await u.screenshot(2);
 
-  await u.insertNewRecording("27.09.2019","08:33","18:44","4,40");
-
+  await u.insertNewRecording("27.09.2019","08:30","13:00","4,40");
   await u.screenshot(3);
+
+  await u.insertNewRecording("27.09.2019","13:45","18:00","");
+  await u.screenshot(4);
+
+  await u.back();
+  
+  await u.screenshot(5);
+
+  await u.back();
+  
+  await u.screenshot(6);
+
+  await u.enterARB();
+
+  await u.screenshot(7);
 
   await u.logout();
 
